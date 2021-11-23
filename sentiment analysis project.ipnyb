@@ -261,3 +261,105 @@ def getLocation(location):
             country_name = float('Nan')
         result = (latitude, longitude, country_code, country_name)
     return result
+tweets_df['location']=tweets_df['location_data'].apply(getLocation) #apply getLocation function
+tweets_df.head() # Check dataframe first 5 rows
+tweet_id	created_at	text	location	retweet	favorite	Location_data	Location
+0	1342121373863436288	2020-12-24 14:54:05	2020 has been an absolute shit year for all of...	No location	0	12	{'items': []}	(nan, nan, nan, nan)
+1	1342121419472138240	2020-12-24 14:54:16	Kid this morning: It felt like it’s been 10 ye...	No location	0	6	{'items': []}	(nan, nan, nan, nan)
+2	1342121426820739084	2020-12-24 14:54:18	Just wanted to take this opportunity to wish y...	Scotland, United Kingdom	0	7	{'items': [{'title': 'Scotland, MD, United Sta...	(38.09434, -76.36635, USA, United States)
+3	1342121618550755330	2020-12-24 14:55:03	Reflecting on this year and I feel like I have...	Johannesburg, South Africa	9	14	{'items': [{'title': 'Johannesburg, Gauteng, S...	(-26.20491, 28.04006, ZAF, South Africa)
+4	1342121950144057344	2020-12-24 14:56:22	One good thing about 2020 has been the number ...	Toronto	0	4	{'items': [{'title': 'Toronto, ON, Canada', 'i...	(43.64869, -79.38544, CAN, Canada)
+# Extraction of Location Coordinates and Country names to different columns
+tweets_df[['Latitude', 'Longitude', 'Country_Code',
+           'Country_Name']] = pd.DataFrame(tweets_df['Location'].tolist(),
+                                           index=tweets_df.index)
+tweets_df.head() # Check dataframe first 5 rows
+tweet_id	created_at	text	location	retweet	favorite	Location_data	Location	Latitude	Longitude	Country_Code	Country_Name
+0	1342121373863436288	2020-12-24 14:54:05	2020 has been an absolute shit year for all of...	No location	0	12	{'items': []}	(nan, nan, nan, nan)	NaN	NaN	NaN	NaN
+1	1342121419472138240	2020-12-24 14:54:16	Kid this morning: It felt like it’s been 10 ye...	No location	0	6	{'items': []}	(nan, nan, nan, nan)	NaN	NaN	NaN	NaN
+2	1342121426820739084	2020-12-24 14:54:18	Just wanted to take this opportunity to wish y...	Scotland, United Kingdom	0	7	{'items': [{'title': 'Scotland, MD, United Sta...	(38.09434, -76.36635, USA, United States)	38.09434	-76.36635	USA	United States
+3	1342121618550755330	2020-12-24 14:55:03	Reflecting on this year and I feel like I have...	Johannesburg, South Africa	9	14	{'items': [{'title': 'Johannesburg, Gauteng, S...	(-26.20491, 28.04006, ZAF, South Africa)	-26.20491	28.04006	ZAF	South Africa
+4	1342121950144057344	2020-12-24 14:56:22	One good thing about 2020 has been the number ...	Toronto	0	4	{'items': [{'title': 'Toronto, ON, Canada', 'i...	(43.64869, -79.38544, CAN, Canada)	43.64869	-79.38544	CAN	Canada
+# Drop unnecessary columns
+tweets_df.drop(['Location_data','location','Location'], axis=1, inplace=True)
+# Rename columns
+tweets_df.columns=['Tweet_ID','Time_Created','Tweet','Retweet_Count','Favorite_Count',
+                   'Latitude','Longitude','Country_Code','Country_Name']
+tweets_df.head() # Check dataframe first 5 rows
+Tweet_ID	Time_Created	Tweet	Retweet_Count	Favorite_Count	Latitude	Longitude	Country_Code	Country_Name
+0	1340701494316830727	2020-12-20 16:51:59	When you think 2020 has been bad and...	0	0	54.97789	-1.61162	GBR	England
+1	1340701340511723525	2020-12-20 16:51:23	every single boy i hooked up with tu...	0	0	NaN	NaN	NaN	NaN
+2	1340701052287541248	2020-12-20 16:50:14	if you can reply to this, you made m...	0	0	35.78547	-78.64270	USA	United States
+3	1340701023367692288	2020-12-20 16:50:07	2020 has been such a cruel year but ...	0	0	NaN	NaN	NaN	NaN
+4	1340700570433310726	2020-12-20 16:48:19	It’s official then Amsterdam is canc...	0	0	52.47891	-1.90592	GBR	England
+5. Tweets Processing
+To reach the ultimate goal, there was a need to clean up the individual tweets. To make this easy, I created several functions in my Python code which I further applied to the "Tweets" column in my Pandas data frame to produce the desired results. Also, for my Word Cloud, I wanted to only show the words used to describe 2020, so I created a function to extract only the adjectives to a new column.
+
+# Function to remove punctuations, links, emojis, and stop words
+def preprocessTweets(tweet):
+    tweet = tweet.lower()  #has to be in place
+    # Remove urls
+    tweet = re.sub(r"http\S+|www\S+|https\S+", '', tweet, flags=re.MULTILINE)
+    # Remove user @ references and '#' from tweet
+    tweet = re.sub(r'\@\w+|\#|\d+', '', tweet)
+    # Remove stopwords
+    tweet_tokens = word_tokenize(tweet)  # convert string to tokens
+    filtered_words = [w for w in tweet_tokens if w not in stop_words]
+    filtered_words = [w for w in filtered_words if w not in emojis]
+    filtered_words = [w for w in filtered_words if w in word_list]
+
+    # Remove punctuations
+    unpunctuated_words = [char for char in filtered_words if char not in string.punctuation]
+    unpunctuated_words = ' '.join(unpunctuated_words)
+
+    return "".join(unpunctuated_words)  # join words with a space in between them
+
+
+# function to obtain adjectives from tweets
+def getAdjectives(tweet):
+    tweet = word_tokenize(tweet)  # convert string to tokens
+    tweet = [word for (word, tag) in pos_tag(tweet)
+             if tag == "JJ"]  # pos_tag module in NLTK library
+    return " ".join(tweet)  # join words with a space in between them
+# Defining my NLTK stop words and my user-defined stop words
+stop_words = list(stopwords.words('english'))
+user_stop_words = ['2020', 'year', 'many', 'much', 'amp', 'next', 'cant', 'wont', 'hadnt',
+                    'havent', 'hasnt', 'isnt', 'shouldnt', 'couldnt', 'wasnt', 'werent',
+                    'mustnt', '’', '...', '..', '.', '.....', '....', 'been…', 'one', 'two',
+                    'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'aht',
+                    've', 'next']
+alphabets = list(string.ascii_lowercase)
+stop_words = stop_words + user_stop_words + alphabets
+word_list = words.words()  # all words in English language
+emojis = list(UNICODE_EMO.keys())  # full list of emojis
+An example of how the above function works is shown below
+print(preprocessTweets("2020 was a year of difficulty. It was sad, but I am happy with how things worked out for me"))
+difficulty sad happy worked
+# Apply preProcessTweets function to the 'Tweet' column to generate a new column called 'Processed Tweets'.
+# This took 23 mins to run for 50,780 rows
+tweets_df['Processed_Tweets'] = tweets_df['Tweet'].apply(preprocessTweets)
+# Apply getAdjectives function to the new 'Processed Tweets' column to generate a new column called 'Tweets_Adjectives'
+tweets_df['Tweets_Adjectives'] = tweets_df['Processed_Tweets'].apply(getAdjectives)
+tweets_df.head() # Check dataframe first 5 rows
+Tweet_ID	Time_Created	Tweet	Retweet_Count	Favorite_Count	Latitude	Longitude	Country_Code	Country_Name	Processed_Tweets	Tweets_Adjectives
+0	1340701494316830727	2020-12-20 16:51:59	When you think 2020 has been bad and...	0	0	54.97789	-1.61162	GBR	England	think bad see phrase mutation	bad phrase
+1	1340701340511723525	2020-12-20 16:51:23	every single boy i hooked up with tu...	0	0	NaN	NaN	NaN	NaN	every single boy hooked turned awful	single turned awful
+2	1340701052287541248	2020-12-20 16:50:14	if you can reply to this, you made m...	0	0	35.78547	-78.64270	USA	United States	reply made yes really rough made bet...	rough worth
+3	1340701023367692288	2020-12-20 16:50:07	2020 has been such a cruel year but ...	0	0	NaN	NaN	NaN	NaN	cruel thank goodness met people made...	bearable
+4	1340700570433310726	2020-12-20 16:48:19	It’s official then Amsterdam is canc...	0	0	52.47891	-1.90592	GBR	England	official cat	official
+# function to return words to their base form using Lemmatizer
+def preprocessTweetsSentiments(tweet):
+    tweet_tokens = word_tokenize(tweet)
+    lemmatizer = WordNetLemmatizer() # instatiate an object WordNetLemmatizer Class
+    lemma_words = [lemmatizer.lemmatize(w) for w in tweet_tokens]
+    return " ".join(lemma_words)
+# Apply preprocessTweetsSentiments function to the 'Processed Tweets' column to generate a new column
+# called 'Processed_Tweets'
+tweets_df['Tweets_Sentiments'] = tweets_df['Processed_Tweets'].apply(preprocessTweetsSentiments)
+tweets_df.head() # Check dataframe first 5 rows
+Tweet_ID	Time_Created	Tweet	Retweet_Count	Favorite_Count	Latitude	Longitude	Country_Code	Country_Name	Processed_Tweets	Tweets_Adjectives	Tweets_Sentiments
+0	1340701494316830727	2020-12-20 16:51:59	When you think 2020 has been bad and...	0	0	54.97789	-1.61162	GBR	England	think bad see phrase mutation	bad phrase	think bad see phrase mutation
+1	1340701340511723525	2020-12-20 16:51:23	every single boy i hooked up with tu...	0	0	NaN	NaN	NaN	NaN	every single boy hooked turned awful	single turned awful	every single boy hooked turned awful
+2	1340701052287541248	2020-12-20 16:50:14	if you can reply to this, you made m...	0	0	35.78547	-78.64270	USA	United States	reply made yes really rough made bet...	rough worth	reply made yes really rough made bet...
+3	1340701023367692288	2020-12-20 16:50:07	2020 has been such a cruel year but ...	0	0	NaN	NaN	NaN	NaN	cruel thank goodness met people made...	bearable	cruel thank goodness met people made...
+4	1340700570433310726	2020-12-20 16:48:19	It’s official then Amsterdam is canc...	0	0	52.47891	-1.90592	GBR	England	official cat	official	official
