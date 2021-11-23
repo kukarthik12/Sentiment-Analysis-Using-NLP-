@@ -1,0 +1,263 @@
+Analyzing Twitter Users' Reflections using NLP
+This is a notebook by Jessica Uwoghiren.
+
+This is a Sentiment Analysis Project using Natural Language Processing (NLP) Techniques. In December 2020, I felt it would be a good idea to obtain insights into how Twitter users felt about the year. Twitter receives over 500 million tweets per day from its users across the globe, so I only had to find a way to retrieve the data. This Notebook makes use of several Python libraries like Pandas (for Data Cleaning/Manipulation), Tweepy (for Tweets Mining), NLTK (Natural Language Toolkit), TextBlob (for Sentiment Analysis), MatPlotlib & WordCloud (for Data Exploration), Emot (for Emojis identification), Plotly (for some Data Visualisation)
+
+Contents
+1. Import Libraries
+
+2. Tweets Mining
+
+3. Data Cleaning
+
+4. Location Geocoding
+
+5. Tweets Processing
+
+6. Data Exploration
+
+7. Sentiment Analysis
+
+8. Closing Remarks and Links
+
+1. Import Libraries
+Import all the libraries to be used in this notebook. I prefer to do this at the initial stage and added more libraries as I went along on the project
+
+import tweepy # for tweet mining
+import pandas as pd # for data manipulation and analysis
+import numpy as np # for working with arrays and carrying out mathematical operations. Pandas is built on Numpy
+import csv # to read and write csv files
+import re # In-built regular expressions library
+import string # Inbuilt string library
+import glob # to retrieve files/pathnames matching a specified pattern. 
+import random # generating random numbers
+import requests # to send HTTP requests
+from PIL import Image # for opening, manipulating, and saving many different image file f
+import matplotlib.pyplot as plt # for plotting
+
+# Set the limits for Pandas Dataframe display to avoid potential system freeze
+pd.set_option("display.max_rows", 15)
+pd.set_option("display.max_columns", 15)
+pd.set_option('display.max_colwidth', 40)
+
+# Natural Language Processing Toolkit
+from nltk.corpus import stopwords, words # get stopwords from NLTK library & get all words in english language
+from nltk.tokenize import word_tokenize # to create word tokens
+# from nltk.stem import PorterStemmer (I played around with Stemmer and decided to use Lemmatizer instead)
+from nltk.stem import WordNetLemmatizer # to reduce words to orginal form
+from nltk import pos_tag # For Parts of Speech tagging
+
+from textblob import TextBlob # TextBlob - Python library for processing textual data
+
+import plotly.express as px # To make express plots in Plotly
+import chart_studio.tools as cst # For exporting to Chart studio
+import chart_studio.plotly as py # for exporting Plotly visualizations to Chart Studio
+import plotly.offline as pyo # Set notebook mode to work in offline
+pyo.init_notebook_mode()
+import plotly.io as pio # Plotly renderer
+import plotly.graph_objects as go # For plotting plotly graph objects
+from plotly.subplots import make_subplots #to make more than one plot in Plotly
+
+
+# WordCloud - Python linrary for creating image wordclouds
+from wordcloud import WordCloud
+
+from emot.emo_unicode import UNICODE_EMO, EMOTICONS # For emojis
+2. Tweets Mining
+I used the Tweepy library for Python to scrape tweets. You need a developer account with Twitter to get the keys used below for this task.
+
+consumer_key = 'XXXXXXXXXXXXXXXXXX'
+consumer_secret = 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
+access_key= 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+access_secret = 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
+auth = tweepy.OAuthHandler(consumer_key, consumer_secret) # Pass in Consumer key and secret for authentication by API
+auth.set_access_token(access_key, access_secret) # Pass in Access key and secret for authentication by API
+api = tweepy.API(auth,wait_on_rate_limit=True,wait_on_rate_limit_notify=True) # Sleeps when API limit is reached
+Creating User-defined Functions for Tweets Mining
+I created 4 different functions for the different search queries I had and stored them in a csv file. This is because I ran the program for 3 consecutive days 22nd to 25th of December. For the 1st run, I did not have to specify the "since_id" but I had to for the following days so that Twitter API does not return Tweets I already had. Another thing to note is you don't have to specify a sleep time for your function. Tweepy has a built-in attribute "wait_on_rate_limit" which I specified above.
+
+def get_tweets2(search_query2, num_tweets2, since_id_num2):
+    # Collect tweets using the Cursor object
+    # Each item in the iterator has various attributes that you can access to get information about each tweet
+    tweet_list2 = [tweets for tweets in tweepy.Cursor(api.search,
+                                    q=search_query2,
+                                    lang="en",
+                                    since_id=since_id_num2,
+                                    tweet_mode='extended').items(num_tweets2)]
+    # Begin scraping the tweets individually:
+    for tweet in tweet_list2[::-1]:
+        tweet_id = tweet.id # get Tweet ID result
+        created_at = tweet.created_at # get time tweet was created
+        text = tweet.full_text # retrieve full tweet text
+        location = tweet.user.location # retrieve user location
+        retweet = tweet.retweet_count # retrieve number of retweets
+        favorite = tweet.favorite_count # retrieve number of likes
+        with open('tweets_2020_has_been.csv','a', newline='', encoding='utf-8') as csvFile2:
+            csv_writer2 = csv.writer(csvFile2, delimiter=',') # create an instance of csv object
+            csv_writer2.writerow([tweet_id, created_at, text, location, retweet, favorite]) # write each row
+search_words2 = "\"2020 has been\"" # Specifying exact phrase to search
+# Exclude Links, retweets, replies
+search_query2 = search_words2 + " -filter:links AND -filter:retweets AND -filter:replies" 
+with open('tweets_2020_has_been.csv', encoding='utf-8') as data:
+    latest_tweet = int(list(csv.reader(data))[-1][0]) # Return the most recent tweet ID
+get_tweets2(search_query2, 10000, latest_tweet)
+# Same as above
+def get_tweets3(search_query3, num_tweets3, since_id_num3):
+    # Collect tweets using the Cursor object
+    # Each item in the iterator has various attributes that you can access to get information about each tweet
+    tweet_list3 = [tweets for tweets in tweepy.Cursor(api.search,
+                                    q=search_query3,
+                                    since_id=since_id_num3,
+                                    lang="en",
+                                    tweet_mode='extended').items(num_tweets3)]
+
+    # Begin scraping the tweets individually:
+    for tweet in tweet_list3[::-1]:
+        tweet_id = tweet.id
+        created_at = tweet.created_at
+        text = tweet.full_text
+        location = tweet.user.location
+        retweet = tweet.retweet_count
+        favorite = tweet.favorite_count
+        with open('tweets_2020_was_a.csv', 'a', newline='', encoding='utf-8') as csvFile3:
+            csv_writer3 = csv.writer(csvFile3, delimiter=',')
+            csv_writer3.writerow([tweet_id, created_at, text, location, retweet, favorite])
+search_words3 = "\"2020 was a\"" # Specifying exact phrase to search
+# Exclude Links, retweets, replies
+search_query3 = search_words3 + " -filter:links AND -filter:retweets AND -filter:replies"
+with open('tweets_2020_was_a.csv', encoding='utf-8') as data:
+    latest_tweet = int(list(csv.reader(data))[-1][0]) # Return the most recent tweet ID
+get_tweets3(search_query3, 10000, latest_tweet)
+# Same as above
+def get_tweets4(search_query4, num_tweets4, since_id_num4):
+    # Collect tweets using the Cursor object
+    # Each item in the iterator has various attributes that you can access to get information about each tweet
+    tweet_list4 = [tweets for tweets in tweepy.Cursor(api.search,
+                                    q=search_query4,
+                                    lang="en",
+                                    since_id=since_id_num4,
+                                    tweet_mode='extended').items(num_tweets4)]
+
+    # Begin scraping the tweets individually:
+    for tweet in tweet_list4[::-1]:
+        tweet_id = tweet.id
+        created_at = tweet.created_at
+        text = tweet.full_text
+        location = tweet.user.location
+        retweet = tweet.retweet_count
+        favorite = tweet.favorite_count
+        with open('tweets_this_year_has_been.csv','a', newline='', encoding='utf-8') as csvFile4:
+            csv_writer4 = csv.writer(csvFile4, delimiter=',')
+            csv_writer4.writerow([tweet_id, created_at, text, location, retweet, favorite])
+search_words4 = "\"this year has been\"" # Specifying exact phrase to search
+# Exclude Links, retweets, replies
+search_query4 = search_words4 + " -filter:links AND -filter:retweets AND -filter:replies"
+with open('tweets_this_year_has_been.csv',encoding='utf-8') as data:
+    latest_tweet=int(list(csv.reader(data))[-1][0]) # Return the most recent tweet ID
+get_tweets4(search_query4,10000,latest_tweet)
+def get_tweets5(search_query5, num_tweets5, since_id_num5):
+    # Collect tweets using the Cursor object
+    # Each item in the iterator has various attributes that you can access to get information about each tweet
+    tweet_list5 = [tweets for tweets in tweepy.Cursor(api.search,
+                                    q=search_query5,
+                                    lang="en",
+                                    since_id=since_id_num5,
+                                    tweet_mode='extended').items(num_tweets5)]
+
+    # Begin scraping the tweets individually:
+    for tweet in tweet_list5[::-1]:
+        tweet_id = tweet.id
+        created_at = tweet.created_at
+        text = tweet.full_text
+        location = tweet.user.location
+        retweet = tweet.retweet_count
+        favorite = tweet.favorite_count
+        with open('tweets_this_year_was_a.csv','a',newline='', encoding='utf-8') as csvFile5:
+            csv_writer5 = csv.writer(csvFile5, delimiter=',')
+            csv_writer5.writerow([tweet_id, created_at, text, location, retweet, favorite])
+search_words5 = "\"this year was a\"" # Specifying exact phrase to search
+search_query5 = search_words5 + " -filter:links AND -filter:retweets AND -filter:replies"
+with open('tweets_this_year_was_a.csv', encoding='utf-8') as data:
+    latest_tweet = int(list(csv.reader(data))[-1][0]) # Return the most recent tweet ID
+get_tweets5(search_query5, 10000, latest_tweet)
+Combining all Tweets into single Pandas Dataframe
+path = r'C:\Users\Osas\Twitter data'  # use your path
+all_files = glob.glob(path + "/*.csv")
+
+tweets = []
+
+for filename in all_files:
+    df = pd.read_csv(filename, index_col=None, header=0) # Convert each csv to a dataframe
+    tweets.append(df)
+
+tweets_df = pd.concat(tweets, axis=0, ignore_index=True) # Merge all dataframes
+
+tweets_df.head()
+tweet_id	created_at	text	location	retweet	favorite
+0	1340701494316830727	2020-12-20 16:51:59	When you think 2020 has been bad and...	Newcastle Upon Tyne	0	0
+1	1340701340511723525	2020-12-20 16:51:23	every single boy i hooked up with tu...	NaN	0	0
+2	1340701052287541248	2020-12-20 16:50:14	if you can reply to this, you made m...	north carolina	0	0
+3	1340701023367692288	2020-12-20 16:50:07	2020 has been such a cruel year but ...	@retailthrpy_PH	0	0
+4	1340700570433310726	2020-12-20 16:48:19	It’s official then Amsterdam is canc...	Birmingham	0	0
+3. Data Cleaning
+The dataframe in Section 2 were cleaned in this section. Duplicate values were checked and removed. It is also important to mention that the Tweet ID was considered as the Primary key for all the dataframe. I also replaced "NaN" values in Location column because if used for Location Geocoding, "NaN" values return Coordinates which should not be.
+
+tweets_df.shape #Get number of rows and columns
+(50868, 6)
+tweets_df.duplicated(subset='tweet_id').sum() # Check for duplicate values
+88
+tweets_df=tweets_df.drop_duplicates(subset=['tweet_id']) # drop duplicate values
+tweets_df.shape # Check the shape after dropping duplicates
+(50780, 6)
+tweets_df.isna().any() # Check for "NaN" values
+tweet_id      False
+created_at    False
+text          False
+location       True
+retweet       False
+favorite      False
+dtype: bool
+tweets_df['location']=tweets_df['location'].fillna('No location') # Replace "NaN" values with "No Location"
+tweets_df.isna().any() # Check for "NaN" values again
+tweet_id      False
+created_at    False
+text          False
+location      False
+retweet       False
+favorite      False
+dtype: bool
+4. Location Geocoding
+For my final dashboard, I wanted to add a map that shows the number of tweets per country. To do that, Tableau needs basic geographic information that it can recognize. After several trials and errors, I ended up using the HERE Developer API to return Longitude, Latitude & Country names for each tweet. One key thing is if you send a request with a "NaN" or Null value to the API, it will return an actual location. This is why I had to replace "NaN" values with "No Location" in the step on Data Cleaning. It is also important to study your dataframe to ensure you are getting the expected results. This is how I caught this discrepancy
+
+URL = "https://geocode.search.hereapi.com/v1/geocode"  # Deevloper Here API link
+api_key = '#######################'  # Acquire api key from developer.here.com
+
+def getCoordinates(location):
+    PARAMS = {'apikey': api_key, 'q': location} # required parameters
+    r = requests.get(url=URL, params=PARAMS)  # pass in required parameters
+    # get raw json file. I did  this because when I combined this step with my "getLocation" function, 
+    # it gave me error for countries with no country_code or country_name. Hence, I needed to use try - except block
+    data = r.json() # Raw json file 
+    return data
+tweets_df['Location_data']=tweets_df['location'].apply(getCoordinates) # Apply getCoordinates Function
+# a function to extract required coordinates information to the tweets_df dataframe
+
+def getLocation(location):
+    for data in location:
+        if len(location['items'])>0:
+            latitude = location['items'][0]['position']['lat']
+            longitude = location['items'][0]['position']['lng']
+            try:   
+                country_code = location['items'][0]['address']['countryCode']
+                country_name = location['items'][0]['address']['countryName']
+                country_name = location['items'][0]['address']['countryName']
+            except KeyError:
+                country_code = float('Nan')
+                country_name = float('Nan')
+        else: 
+            latitude = float('Nan')
+            longitude = float('Nan')
+            country_code = float('Nan') 
+            country_name = float('Nan')
+        result = (latitude, longitude, country_code, country_name)
+    return result
